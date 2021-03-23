@@ -278,12 +278,17 @@ end
 
 function set_array(s::MultithreadedForm, closed_args, out, outputidxs, rhss, checkbounds, skipzeros)
     if rhss isa AbstractSparseArray
-        return set_array(LiteralExpr(:($out.nzval)),
+        return set_array(s,
+                         closed_args,
+                         LiteralExpr(:($out.nzval)),
                          nothing,
                          rhss.nzval,
                          checkbounds,
                          skipzeros)
     end
+
+    outvar = !(out isa Sym) ? gensym("out") : out
+
     if outputidxs === nothing
         outputidxs = collect(eachindex(rhss))
     end
@@ -292,8 +297,8 @@ function set_array(s::MultithreadedForm, closed_args, out, outputidxs, rhss, che
     slices = collect(Iterators.partition(zip(outputidxs, rhss), per_task))
     arrays = map(slices) do slice
         idxs, vals = first.(slice), last.(slice)
-        Func([out, closed_args...], [],
-             _set_array(out, idxs, vals, checkbounds, skipzeros)), [out, closed_args...]
+        Func([outvar, closed_args...], [],
+             _set_array(outvar, idxs, vals, checkbounds, skipzeros)), [out, closed_args...]
     end
     SpawnFetch{MultithreadedForm}(first.(arrays), last.(arrays), @inline noop(args...) = nothing)
 end
