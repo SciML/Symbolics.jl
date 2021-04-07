@@ -143,7 +143,7 @@ canonequal(a, b) = isequal(simplify(a), simplify(b))
                  Symbolics.derivative(sin(cos(x)), x),
                  -sin(x) * cos(cos(x))
                 )
-
+function no_der end
 Symbolics.@register no_der(x)
 @test canonequal(
                  Symbolics.derivative([sin(cos(x)), hypot(x, no_der(x))], x),
@@ -153,6 +153,7 @@ Symbolics.@register no_der(x)
                  ]
                 )
 
+function intfun end
 Symbolics.@register intfun(x)::Int
 @test Symbolics.symtype(intfun(x)) === Int
 

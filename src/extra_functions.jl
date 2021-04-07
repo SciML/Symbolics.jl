@@ -39,6 +39,11 @@ end
 @register ∈(x::Num, y::AbstractArray)
 @register ∪(x, y)
 @register ∩(x, y)
+
+function ∨ end
+function ∧ end
+function ⊆ end
+
 @register ∨(x, y)
 @register ∧(x, y)
 @register ⊆(x, y)

@@ -39,7 +39,7 @@ macro register(expr, define_promotion = true, Ts = [Num, Symbolic, Real])
     ex = Expr(:block)
     for ts in types
         push!(ex.args, quote
-            function $f($(setinds(args, symbolic_args, ts)...))
+            function (::$(Core.Typeof)($f))($(setinds(args, symbolic_args, ts)...))
                 wrap =  any(x->typeof(x) <: Num, tuple($(setinds(args, symbolic_args, ts)...),)) ? Num : identity
                 wrap($Term{$ret_type}($f, [$(map(name, args)...)]))
             end
