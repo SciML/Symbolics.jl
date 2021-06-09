@@ -9,7 +9,7 @@ end
 
 const show_numwrap = Ref(false)
 
-Num(x::Num) = x # ideally this should never be called
+Num(x::Union{Num,Complex{Num}}) = x
 (n::Num)(args...) = Num(value(n)(map(value,args)...))
 value(x) = x
 value(x::Num) = x.val
@@ -196,8 +196,9 @@ _isone(::Symbolic) = false
 _iszero(x::Num) = _iszero(value(x))
 _isone(x::Num) = _isone(value(x))
 
-SymbolicUtils.Code.toexpr(x::Num) = SymbolicUtils.Code.toexpr(value(x))
-
 SymbolicUtils.setmetadata(x::Num, t, v) = Num(SymbolicUtils.setmetadata(value(x), t, v))
 SymbolicUtils.getmetadata(x::Num, t) = SymbolicUtils.getmetadata(value(x), t)
 SymbolicUtils.hasmetadata(x::Num, t) = SymbolicUtils.hasmetadata(value(x), t)
+
+toexpr(n::Num, st) = toexpr(value(n), st)
+toexpr(n::Complex{Num}, st) = :($Complex($(toexpr(real(n), st)), $(toexpr(imag(n), st))))

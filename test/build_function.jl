@@ -141,3 +141,9 @@ D = Differential(t)
 expr = toexpr(Func([value(D(x))], [], value(D(x))))
 @test expr.args[2].args[end] == expr.args[1].args[1] # check function body and function arg
 @test expr.args[2].args[end] == :(var"Differential(t)(x(t))")
+
+# issue #159
+@variables a b
+out = a + b*im
+f = eval(build_function(out, (a, b)))
+@test f((1, 2)) == 1 + 2im
