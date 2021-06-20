@@ -1,5 +1,6 @@
 using SymbolicUtils.Code
 using Base.Threads
+using ThreadingUtilities
 
 abstract type BuildTargets end
 struct JuliaTarget <: BuildTargets end
@@ -9,6 +10,7 @@ struct MATLABTarget <: BuildTargets end
 
 abstract type ParallelForm end
 struct SerialForm <: ParallelForm end
+struct BatchedForm <: ParallelForm end
 struct MultithreadedForm <: ParallelForm
     ntasks::Int
 end
@@ -221,7 +223,15 @@ function _build_function(target::JuliaTarget, rhss::AbstractArray, args...;
     end
 
     out = Sym{Any}(gensym("out"))
-    ip_expr = Func([out, dargs...], [], set_array(parallel, dargs, out, outputidxs, rhss, checkbounds, skipzeros))
+    ip_expr = Func([out, dargs...],
+                   [],
+                   set_array(parallel,
+                             dargs,
+                             out,
+                             outputidxs,
+                             rhss,
+                             checkbounds,
+                             skipzeros))
 
     if !isnothing(wrap_code[2])
         ip_expr = wrap_code[2](ip_expr)
@@ -253,29 +263,29 @@ function make_array(s::MultithreadedForm, closed_args, arr, similarto)
     SpawnFetch{MultithreadedForm}(first.(arrays), last.(arrays), vcat)
 end
 
-struct Funcall{F, T}
-    f::F
-    args::T
+struct ClosureExpr
+    f
+    args
+    rt
 end
 
-(f::Funcall)() = f.f(f.args...)
+ClosureExpr(f,args) = ClosureExpr(f, args, Any)
+
+function toexpr(c::ClosureExpr, st)
+    :($Funcall($(@RuntimeGeneratedFunction(toexpr(c.f, st))),
+               ($(toexpr.(c.args, (st,))...),),
+               $(toexpr(c.rt, st))))
+end
 
 function toexpr(p::SpawnFetch{MultithreadedForm}, st)
-    args = isnothing(p.args) ?
-              Iterators.repeated((), length(p.exprs)) : p.args
-    spawns = map(p.exprs, args) do thunk, a
-        ex = :($Funcall($(@RuntimeGeneratedFunction(toexpr(thunk, st))),
-                       ($(toexpr.(a, (st,))...),)))
-        quote
-            let
-                task = Base.Threads.Task($ex)
-                Base.Threads.schedule(task)
-                task
-            end
-        end
+    ex = map(p.exprs) do thunk
+        toexpr(thunk, st)
     end
+
     quote
-        $(toexpr(p.combine, st))(map(fetch, ($(spawns...),))...)
+        $spawn_fetch(($(ex...),),
+                            Val{$(Threads.nthreads())}(),
+                            $(toexpr(p.combine, st)))
     end
 end
 
@@ -311,9 +321,13 @@ function set_array(s::SerialForm, closed_vars, args...)
     _set_array(args...)
 end
 
+@inline noop(args...) = nothing
+
 function set_array(s::MultithreadedForm, closed_args, out, outputidxs, rhss, checkbounds, skipzeros)
     if rhss isa AbstractSparseArray
-        return set_array(LiteralExpr(:($out.nzval)),
+        return set_array(s,
+                         [],
+                         LiteralExpr(:($out.nzval)),
                          nothing,
                          rhss.nzval,
                          checkbounds,
@@ -327,10 +341,14 @@ function set_array(s::MultithreadedForm, closed_args, out, outputidxs, rhss, che
     slices = collect(Iterators.partition(zip(outputidxs, rhss), per_task))
     arrays = map(slices) do slice
         idxs, vals = first.(slice), last.(slice)
-        Func([out, closed_args...], [],
-             _set_array(out, idxs, vals, checkbounds, skipzeros)), [out, closed_args...]
+        outvar = gensym("out")
+        Func([outvar, closed_args...], [],
+             _set_array(outvar, idxs, vals, checkbounds, skipzeros)), [out, closed_args...]
     end
-    SpawnFetch{MultithreadedForm}(first.(arrays), last.(arrays), @inline noop(args...) = nothing)
+
+    SpawnFetch{MultithreadedForm}(ClosureExpr.(first.(arrays),
+                                               last.(arrays),
+                                               Nothing), noop)
 end
 
 function _set_array(out, outputidxs, rhss::AbstractSparseArray, checkbounds, skipzeros)
