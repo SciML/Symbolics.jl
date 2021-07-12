@@ -69,6 +69,8 @@ function wrap_func_expr(mod, expr)
     args = get(def, :args, [])
     kwargs = get(def, :kwargs, [])
 
+    impl_name = Symbol(fname,"_", hash(string(args)*string(kwargs)))
+
     function kwargname(kwarg)
         if kwarg isa Expr && kwarg.head == :kw
             kwarg.args[1]
@@ -105,7 +107,6 @@ function wrap_func_expr(mod, expr)
 
     types = map(type_options, args)
 
-    impl_name = gensym(string(fname))
     impl = :(function $impl_name($(names...))
         $body
     end)
