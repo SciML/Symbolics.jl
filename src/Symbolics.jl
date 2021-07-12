@@ -84,6 +84,11 @@ include("latexify_recipes.jl")
 using RecipesBase
 include("plot_recipes.jl")
 
+using Metatheory
+using Metatheory.EGraphs
+using TermInterface 
+include("mt_optimize.jl")
+
 include("domains.jl")
 
 using Requires

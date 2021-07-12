@@ -23,7 +23,9 @@ if GROUP == "All" || GROUP == "Core"
     @safetestset "Build Targets Test" begin include("build_targets.jl") end
     @safetestset "Latexify Test" begin include("latexify.jl") end
     @safetestset "Domain Test" begin include("domains.jl") end
+    @safetestset "Metatheory Optimization" begin include("mt_optimize.jl") end
     @safetestset "SymPy Test" begin include("sympy.jl") end
+
 end
 
 if GROUP == "Downstream"
