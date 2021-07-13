@@ -210,3 +210,5 @@ B = [x[1] 1.0
 @test_throws ArgumentError Matrix{Float64}(A)
 @test Matrix{Float64}(A-B) isa Matrix{Float64}
 @test Matrix{Float64}(A-B) == [0.0 1.0;0.0 0.0]
+
+@test isequal(simplify(cos(x)^2 + sin(x)^2 + im * x), 1 + x*im)

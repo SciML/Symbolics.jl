@@ -162,6 +162,13 @@ function _parse_vars(macroname, type, x, transform=identity)
             end
         end
 
+
+      # if Meta.isexpr(v, :(::))
+      #     v, type′ = v.args
+      #     type = type′ === :Complex ? Complex{type} : type′
+      # end
+
+
         # x [connect = flow; unit = u"m^3/s"]
         if isoption(nv)
             options = nv.args
@@ -195,11 +202,19 @@ function construct_vars(v, type, call_args, val, prop, transform, isruntime)
     isarray = isa(v, Expr) && v.head == :ref
     if isarray
         var_name = v.args[1]
+        if Meta.isexpr(var_name, :(::))
+            var_name, type′ = var_name.args
+            type = type′ === :Complex ? Complex{type} : type′
+        end
         isruntime, var_name = unwrap_runtime_var(var_name)
         indices = v.args[2:end]
         expr = _construct_array_vars(isruntime ? var_name : Meta.quot(var_name), type, call_args, val, prop, indices...)
     else
         var_name = v
+        if Meta.isexpr(v, :(::))
+            var_name, type′ = v.args
+            type = type′ === :Complex ? Complex{type} : type′
+        end
         expr = construct_var(isruntime ? var_name : Meta.quot(var_name), type, call_args, val, prop)
     end
     lhs = isruntime ? gensym(var_name) : var_name
