@@ -57,6 +57,10 @@ for C in [Complex, Complex{Bool}]
     end
 end
 
+istree(c::Complex{Num}) = true
+operation(::Complex{Num}) = Complex{Num}
+arguments(c::Complex{Num}) = [real(c), imag(c)]
+
 function Base.inv(z::Complex{Num})
     a, b = reim(z)
     den = a^2 + b^2
